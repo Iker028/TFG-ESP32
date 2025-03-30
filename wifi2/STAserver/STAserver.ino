@@ -9,6 +9,9 @@ bool a=true;
 const String IP="192.168.4.1";
 int httpCode=0;
 
+const int string =1;
+const int modulo=1;
+
 
 float luminosidad(){
   float vluz=analogRead(luz);
@@ -88,7 +91,9 @@ void loop() {
               responsecode=httpPost.POST(fileContent);
               }
               file.close();
-              break;}
+              break;
+            case 4:
+              responsecode=httpPost.POST(String(modulo)+","+String(string));break;}
           httpPost.end();
           }
         }
@@ -137,6 +142,7 @@ int getCommandCode(String cmd) {
     if (cmd == "temperatura") return 1;
     if (cmd == "luminosidad") return 2;
     if (cmd == "IV") return 3;
+    if (cmd == "getij") return 4;
     return -1;  // Default case
 }
 
