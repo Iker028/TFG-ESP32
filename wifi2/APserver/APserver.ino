@@ -43,9 +43,8 @@ void loop(){
       if(command=="macs"){
        get_connectedev();
       }
-    }
-    else{command="";} 
-
+    } 
+   
 }
 else{for(int led:ledPins){digitalWrite(led,HIGH);}}
 }
@@ -55,6 +54,7 @@ void handlePost(){
     String data= server.arg("plain");
     Serial.println(data);
     server.send(200, "text/plain", "POST recibido");
+    command="";
   }
 }
 void handlepostable(){
