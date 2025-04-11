@@ -43,7 +43,8 @@ void loop(){
       if(command=="macs"){
        get_connectedev();
       }
-    } 
+    }
+    else{command="80:65:99:BB:DE:14/IV";} 
    
 }
 else{for(int led:ledPins){digitalWrite(led,HIGH);}}
@@ -66,7 +67,7 @@ void get_connectedev(){
     wifi_sta_list_t stationList;
     if (esp_wifi_ap_get_sta_list(&stationList) == ESP_OK) {
         for (int i = 0; i < stationList.num; i++) {
-            Serial.printf("Dispositivo %d - MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", i + 1,
+            Serial.printf("%02X:%02X:%02X:%02X:%02X:%02X\n",
                           stationList.sta[i].mac[0], stationList.sta[i].mac[1], stationList.sta[i].mac[2],
                           stationList.sta[i].mac[3], stationList.sta[i].mac[4], stationList.sta[i].mac[5]);
         }
