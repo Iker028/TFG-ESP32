@@ -44,7 +44,7 @@ void loop(){
        get_connectedev();
       }
     }
-    else{command="80:65:99:BB:DE:14/IV";} 
+    else{}
    
 }
 else{for(int led:ledPins){digitalWrite(led,HIGH);}}

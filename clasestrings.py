@@ -133,7 +133,8 @@ class Boton(GUI):
         labellum.pack(side=tk.TOP)
         botonIV=ttk.Button(root2,text='Grafico I-V',command=self.graphIV)
         botonIV.pack(anchor='center')
-        
+        botonIVhist=ttk.Button(root2,text='IVhist',command=self.graph_IVhist)
+        botonIVhist.pack(anchor='center')
 
 
     def graphIV(self):
@@ -144,7 +145,7 @@ class Boton(GUI):
         GUI.arduino.write(bytes(self.mac+'/IV','utf-8'))
         time.sleep(1)
         stringcsv = GUI.arduino.readall().decode('utf-8')
-        linea=stringcsv.splitlines()
+        linea=stringcsv.strip().splitlines()
         for i in range(1,len(linea)):
             try:
                 x.append(float(linea[i].split(',')[0]))
@@ -160,7 +161,44 @@ class Boton(GUI):
         figure_canvas = FigureCanvasTkAgg(fig, root3)
         NavigationToolbar2Tk(figure_canvas, root3)
         figure_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-    
+    def graph_IVhist(self):
+        root4=tk.Tk()
+        root4.title(f'Grafico I-V con histeresis: S{self.j+1} M{self.i+1}')
+        xIV=[]
+        yIV=[]
+        GUI.arduino.write(bytes(self.mac+'/IV','utf-8'))
+        time.sleep(1)
+        stringcsv = GUI.arduino.readall().decode('utf-8')
+        linea=stringcsv.strip().splitlines()
+        for i in range(1,len(linea)):
+            try:
+                xIV.append(float(linea[i].split(',')[0]))
+                yIV.append(float(linea[i].split(',')[1]))
+            except(ValueError):
+                print(f"dato{i} no representable")
+        histx=[]
+        histy=[]
+        GUI.arduino.write(bytes(self.mac+'/histeresis','utf-8'))
+        time.sleep(1)
+        stringcsv = GUI.arduino.readall().decode('utf-8')
+        linea=stringcsv.strip().splitlines()
+        for i in range(1,len(linea)):
+            try:
+                histx.append(float(linea[i].split(',')[0]))
+                histy.append(float(linea[i].split(',')[1]))
+            except(ValueError):
+                print(f"dato{i} no representable")
+        fig, ax = plt.subplots(dpi=150)
+        ax.scatter(xIV,yIV,label='IV')
+        ax.scatter(histx,histy,label='IVhist')
+        ax.grid(True)
+        ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
+        ax.set_xlabel(r"Voltaje $(V)$")
+        ax.set_ylabel(r"Intensidad $(A)$")
+        ax.legend()
+        figure_canvas = FigureCanvasTkAgg(fig, root4)
+        NavigationToolbar2Tk(figure_canvas, root4)
+        figure_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
     def temp(self):
         GUI.arduino.write(bytes(self.mac+'/temperatura','utf-8'))
         time.sleep(1)
