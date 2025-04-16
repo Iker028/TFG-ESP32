@@ -53,7 +53,7 @@ else{for(int led:ledPins){digitalWrite(led,HIGH);}}
 void handlePost(){
   if (server.hasArg("plain")){
     String data= server.arg("plain");
-    Serial.println(data);
+    Serial.println(data,12);
     server.send(200, "text/plain", "POST recibido");
     command="";
   }

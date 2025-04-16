@@ -10,8 +10,8 @@ bool a=true;
 const String IP="192.168.4.1";
 int httpCode=0;
 
-const int string =1;
-const int modulo=1;
+const int string =2;
+const int modulo=2;
 
 
 double luminosidad(){
@@ -81,55 +81,100 @@ void loop() {
               responsecode=httpPost.POST(String(lum));
               break;}
             case 3:{
-              File file = LittleFS.open("/IV.txt", "r");
+              File file = LittleFS.open("/IVizq.txt", "r");
+              String fileContentizq = "";
               if (!file) {
                 httpPost.POST("Error: no se ha encontrado archivo en memoria SPIFFS");
               }
               else{
-              String fileContent = "";
               while (file.available()) {
-                fileContent += (char)file.read();
+                fileContentizq += (char)file.read();
               }
-              responsecode=httpPost.POST(fileContent);
               }
               file.close();
+              file = LittleFS.open("/IVder.txt", "r");
+              String fileContentder="";
+              if (!file) {
+                httpPost.POST("Error: no se ha encontrado archivo en memoria SPIFFS");
+              }
+              else{
+              while (file.available()) {
+                fileContentder += (char)file.read();
+              }
+              }
+              file.close();
+              responsecode=httpPost.POST(fileContentizq+fileContentder);
               break;}
             case 4:{
               responsecode=httpPost.POST(String(modulo)+","+String(string));break;}
               
             case 5:{
-              File file = LittleFS.open("/IV.txt", "r");
+              File file = LittleFS.open("/IVizq.txt", "r");
+              String IVizqcorregida="";
               if (!file) {
-                httpPost.POST("Error: no se ha encontrado archivo en memoria SPIFFS");
+              }
+              else{
+              String fileContentizq = "";
+              std::vector<double> Vmlistizq;
+              std::vector<double> Imlistizq;
+              int i=0;
+              while (file.available()){
+                fileContentizq = file.readStringUntil('\n');
+                int coma=fileContentizq.indexOf(",");
+                double Vmizq=fileContentizq.substring(0,coma).toDouble();
+                double Imizq=fileContentizq.substring(coma+1,fileContentizq.length()).toDouble();
+                if (i==0){
+                  Vmlistizq.push_back(Vmizq);
+                  Imlistizq.push_back(Imizq);}
+                else{
+                  if(Vmizq!=Vmlistizq.back()){
+                    Vmlistizq.push_back(Vmizq);
+                    Imlistizq.push_back(Imizq);}
+                }
+              }
+              IVizqcorregida=algoritmo(Vmlistizq,Imlistizq,0.165,true);
+              }
+              file.close();
+
+              file = LittleFS.open("/IVder.txt", "r");
+              String IVdercorregida="";
+              if (!file) {
               }
               else{
               String fileContent = "";
-              std::vector<double> Vmlist;
-              std::vector<double> Imlist;
+              std::vector<double> Vmlistder;
+              std::vector<double> Imlistder;
               int i=0;
               while (file.available()) {
                 fileContent = file.readStringUntil('\n');
                 int coma=fileContent.indexOf(",");
-                double Vm=fileContent.substring(0,coma).toDouble();
-                double Im=fileContent.substring(coma+1,fileContent.length()).toDouble();
+                double Vmder=fileContent.substring(0,coma).toDouble();
+                double Imder=fileContent.substring(coma+1,fileContent.length()).toDouble();
                 if (i==0){
-                  Vmlist.push_back(Vm);
-                  Imlist.push_back(Im);}
+                  Vmlistder.push_back(Vmder);
+                  Imlistder.push_back(Imder);}
                 else{
-                  if(Vm!=Vmlist.back()){
-                    Vmlist.push_back(Vm);
-                    Imlist.push_back(Im);}
+                  if(Vmder!=Vmlistder.back()){
+                    Vmlistder.push_back(Vmder);
+                    Imlistder.push_back(Imder);}
                 }
               }
-              String IVcorregida=algoritmo(Vmlist,Imlist,0.165,true);
-              httpPost.POST(IVcorregida);
-              break;
+              IVdercorregida=algoritmo(Vmlistder,Imlistder,0.165,false);
               }
               file.close();
-              
-              
-            } 
+              httpPost.POST(IVizqcorregida+IVdercorregida);
+              break;
+            }
 
+            case 6:{
+              File file = LittleFS.open("/IVizq.txt", "r");
+              String IVizqcorregida="";
+              if (!file){}
+              else{
+              String fileContentizq = "";
+              String oppoint = file.readStringUntil('\n');
+              httpPost.POST(oppoint);
+              }
               }
           httpPost.end();
           }
@@ -138,7 +183,7 @@ void loop() {
       http.end();
     }
   }
-
+}
 
 
 
@@ -181,6 +226,7 @@ int getCommandCode(String cmd) {
     if (cmd == "histeresis") return 3;
     if (cmd == "getij") return 4;
     if (cmd == "IV") return 5;
+    if (cmd=="OP") return 6;
     return -1;  // Default case
 }
 
@@ -189,12 +235,23 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
   //para el caso de Corte (T2)---> se separan cuando Vm llega a su mínimo
   //el caso de circuito abierto (T3)---> se separan cuando Vm llega a su valor máximo
   size_t ind = 0;  // declarada antes
+  size_t j=0;
+  double epsilon=0.02;
   if (corte){
     auto minVm = std::min_element(Vmlist.begin(), Vmlist.end());
-    ind = std::distance(Vmlist.begin(), minVm);}
+    ind = std::distance(Vmlist.begin(), minVm);
+    j=ind;
+    while(fabs(Imlist.at(ind)-Imlist.at(j))<=epsilon){
+    j=j+1;}
+    j=ind;
+    }
   else{
     auto maxVm = std::max_element(Vmlist.begin(), Vmlist.end());
-    ind = std::distance(Vmlist.begin(), maxVm);}
+    ind = std::distance(Vmlist.begin(), maxVm);
+    j=ind;
+    while(fabs(Imlist.at(ind)-Imlist.at(j))<=epsilon){
+      j=j+1;}}
+  j=j-ind;
   std::vector<double> Vrev(Vmlist.begin(), Vmlist.begin() + ind);
   std::vector<double> Vfw(Vmlist.begin() + ind, Vmlist.end());
   std::vector<double> Irev(Imlist.begin(), Imlist.begin() + ind);
@@ -250,21 +307,22 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
   double sumaC=0;
   double c=0;
   for(size_t i=0;i<Vjfw.size();i++){
+    //(Vjfw.at(i)<(Vjrev.at(0)-0.1))
     if (Vjfw.at(i)<(Vjrev.at(0)-0.1)){
       size_t k=findVm(Vjrev,Vjfw.at(i));
       c=fabs((Irev.at(k)-Ifw.at(i))/(dVjfw.at(i)-dVjrev.at(k)));
       sumaC=sumaC+c;}
   }
   double Cavg=sumaC/(Vjfw.size());
-
   String curvaIV="";
 
   for(size_t i=0;i<Ifw.size();i++){
-    if (Vjfw.at(i)<(Vjrev.at(0)-0.1)){
-      double I=Ifw.at(i)+Cavg*dVjfw.at(i);
-      curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(I,7)+"\n";}
-    else{curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Ifw.at(i),7)+"\n";}
-  }
+    if(i>=j){
+      if (fabs(Vjfw.at(i)-Vjrev.at(0))>0.1){
+        double I=Ifw.at(i)+Cavg*dVjfw.at(i);
+        curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(I,7)+"\n";}
+      else{curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Ifw.at(i),7)+"\n";}
+  }}
   return curvaIV;
 }
 
