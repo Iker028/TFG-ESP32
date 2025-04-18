@@ -84,7 +84,7 @@ void loop() {
               File file = LittleFS.open("/IVizq.txt", "r");
               String fileContentizq = "";
               if (!file) {
-                httpPost.POST("Error: no se ha encontrado archivo en memoria SPIFFS");
+                
               }
               else{
               while (file.available()) {
@@ -95,7 +95,7 @@ void loop() {
               file = LittleFS.open("/IVder.txt", "r");
               String fileContentder="";
               if (!file) {
-                httpPost.POST("Error: no se ha encontrado archivo en memoria SPIFFS");
+                
               }
               else{
               while (file.available()) {
@@ -236,14 +236,13 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
   //el caso de circuito abierto (T3)---> se separan cuando Vm llega a su valor máximo
   size_t ind = 0;  // declarada antes
   size_t j=0;
-  double epsilon=0.02;
+  double epsilon=0.05;
   if (corte){
     auto minVm = std::min_element(Vmlist.begin(), Vmlist.end());
     ind = std::distance(Vmlist.begin(), minVm);
     j=ind;
     while(fabs(Imlist.at(ind)-Imlist.at(j))<=epsilon){
     j=j+1;}
-    j=ind;
     }
   else{
     auto maxVm = std::max_element(Vmlist.begin(), Vmlist.end());
@@ -252,10 +251,10 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
     while(fabs(Imlist.at(ind)-Imlist.at(j))<=epsilon){
       j=j+1;}}
   j=j-ind;
-  std::vector<double> Vrev(Vmlist.begin(), Vmlist.begin() + ind);
-  std::vector<double> Vfw(Vmlist.begin() + ind, Vmlist.end());
-  std::vector<double> Irev(Imlist.begin(), Imlist.begin() + ind);
-  std::vector<double> Ifw(Imlist.begin() + ind, Imlist.end());
+  std::vector<double> Vrev(Vmlist.begin(), Vmlist.begin() + ind-1);
+  std::vector<double> Vfw(Vmlist.begin() + ind-1, Vmlist.end());
+  std::vector<double> Irev(Imlist.begin(), Imlist.begin() + ind-1);
+  std::vector<double> Ifw(Imlist.begin() + ind-1, Imlist.end());
 
   std::vector<double> Vjrev;
   std::vector<double> Vjfw;
@@ -303,27 +302,63 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
     }
   }
 
-
+  /*
   double sumaC=0;
   double c=0;
+  int numero=0;
   for(size_t i=0;i<Vjfw.size();i++){
+    size_t k=findVm(Vjrev,Vjfw.at(i));
     //(Vjfw.at(i)<(Vjrev.at(0)-0.1))
-    if (Vjfw.at(i)<(Vjrev.at(0)-0.1)){
-      size_t k=findVm(Vjrev,Vjfw.at(i));
+    if ((fabs(Vfw.at(i)-Vrev.at(0))>0.3)&&((dVjfw.at(i)-dVjrev.at(k))!=0)){
       c=fabs((Irev.at(k)-Ifw.at(i))/(dVjfw.at(i)-dVjrev.at(k)));
+      numero=numero+1;
       sumaC=sumaC+c;}
   }
-  double Cavg=sumaC/(Vjfw.size());
+  double Cavg=sumaC/numero;
+  Serial.println(Cavg,14);
+  */
+  std::vector<double> Clist;
+  double c=0;
+  for(size_t i=0;i<Vjfw.size();i++){
+    size_t k = findVm(Vjrev,Vjfw.at(i));
+    if ((dVjfw.at(i)-dVjrev.at(k))!=0){
+      c=fabs((Irev.at(k)-Ifw.at(i))/(dVjfw.at(i)-dVjrev.at(k)));
+      Clist.push_back(c);
+    }
+    else{Clist.push_back(0);}
+  }
+  String curvaIV="";
+  for(size_t i=0;i<Ifw.size();i++){
+    double I=Ifw.at(i)+Clist.at(i)*dVjfw.at(i);
+    if(fabs(Vfw.at(i)-Vrev.at(0))>0.3){curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(I,7)+"\n";}
+    else{curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Ifw.at(i),7)+"\n";}
+  }
+  return curvaIV;
+
+
+  /*
   String curvaIV="";
 
   for(size_t i=0;i<Ifw.size();i++){
-    if(i>=j){
-      if (fabs(Vjfw.at(i)-Vjrev.at(0))>0.1){
-        double I=Ifw.at(i)+Cavg*dVjfw.at(i);
-        curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(I,7)+"\n";}
+    if(i>j){
+      double I=Ifw.at(i)+Cavg*dVjfw.at(i);
+      if (fabs(Vfw.at(i)-Vrev.at(0))>0.3){
+        if(I<=Irev.at(0)+0.3){
+          curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(I,7)+"\n";}
+        else{curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Irev.at(0)+0.3,7)+"\n";}}
       else{curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Ifw.at(i),7)+"\n";}
-  }}
+  }
+    else if(corte){
+      curvaIV=curvaIV=curvaIV+String(Vfw.at(i),7)+","+String(Ifw.at(i),7)+"\n";
+    }
+  
+  
+  }
   return curvaIV;
+  */
+
+
+
 }
 
 

@@ -204,8 +204,8 @@ class Boton(GUI):
             except(ValueError):
                 print(f"dato{i} no representable")
         fig, ax = plt.subplots(dpi=150)
-        ax.scatter(xIV,yIV,label='IV')
         ax.scatter(histx,histy,label='IVhist')
+        ax.scatter(xIV,yIV,label='IV')
         ax.grid(True)
         ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         ax.set_xlabel(r"Voltaje $(V)$")
@@ -238,32 +238,40 @@ class Boton(GUI):
     def _function(I,a,b,c,Rs):
         arg = -b*I + c
         # Return a big penalty where log is invalid
-        if np.any(arg <= 0):
-            return np.full_like(I, 1e6)
-        return a * np.log(arg)-I*Rs
+        if np.any(arg) <= 0:
+            return np.full_like(I,1e6)
+        return a*np.log(arg)-I*Rs
     def _dfunction(I,a,b,c,Rs):
-        return -((a*b)/(c-b*I)-Rs)
+        return -((a*b)/(c-b*I)+Rs)
     def _power(I,a,b,c,Rs):
         return Boton._function(I,a,b,c,Rs)*I
     def _dpower(I,a,b,c,Rs):
+        arg=c-b*I
         return a*np.log(c-b*I)-I*(2*Rs+(a*b)/(c-b*I))
+    def _ddpower(I,a,b,c,Rs):
+        return -(2 *a*b)/(c-b*I) -(a*b**2*I)/(c-b*I)**2 -2*Rs
     
     def _newton(a,b,c,Rs,op):
-        max=sp.optimize.newton(func=lambda I:Boton._power(I,a,b,c,Rs),x0=op,fprime=lambda I:Boton._dpower(I,a,b,c,Rs),tol=1e-6,maxiter=10000)
-        return max
-    def _monte_carlo_newton_curvefit(popt, pcov, op, num_samples=10000):
+        resultado=sp.optimize.root_scalar(f=lambda I:Boton._dpower(I,a,b,c,Rs),x0=op,fprime=lambda I:Boton._ddpower(I,a,b,c,Rs),xtol=1e-4,maxiter=1000,method='bisect',bracket=[0,(c-1)/b])
+        return resultado.root
+    def _monte_carlo_newton_curvefit(popt, pcov, op, num_samples=1000):
         # Generar muestras aleatorias de los parámetros usando la matriz de covarianza completa
         samples = np.random.multivariate_normal(mean=popt, cov=pcov, size=num_samples)
         results = []
         for sample in samples:
             a_sample, b_sample, c_sample, Rs_sample = sample
-            try:
-                # Calcular el máximo usando el método de Newton
-                max_value = Boton._newton(a_sample, b_sample, c_sample, Rs_sample, op)
-                results.append(max_value)
-            except RuntimeError:
-            # Si el método de Newton falla, ignorar este caso
-                continue
+            # Calcular el máximo usando el método de Newton
+            if c_sample <= 0 or b_sample <= 0:
+                print('Invalid sample:', sample)
+                continue  # Skip invalid samples
+            else:
+                if (c_sample-b_sample*op)>0:
+                    try:
+                        max_value = Boton._newton(a_sample, b_sample, c_sample, Rs_sample, op)
+                        results.append(max_value)
+                    except RuntimeError:
+                        print('hola')
+                        continue
         # Calcular el promedio y la desviación estándar de los resultados
         mean_max = np.mean(results)
         std_max = np.std(results)
@@ -271,29 +279,29 @@ class Boton(GUI):
     
     def curvefit(self,root,figure_canvas,I,V): 
         p0 = [1.0, 0.001, 0.026, 1.0]
-        lower_bounds = [0.00000000001, 0.0000000001, 0.0000000001,0.001]  # a > 0, b > 0.01
-        upper_bounds = [np.inf,np.inf, np.inf,np.inf]
-        popt, pcov = sp.optimize.curve_fit(Boton._function,I, V,maxfev=10000,bounds=(lower_bounds, upper_bounds),p0=p0)
+        lower_bounds = [0, 0, 0,0] 
+        upper_bounds = [np.inf,np.inf, np.inf, np.inf]  
+        popt, pcov = sp.optimize.curve_fit(Boton._function,I, V,maxfev=100000,bounds=(lower_bounds, upper_bounds),p0=p0)
         a=popt[0]
         b=popt[1]
         c=popt[2]      
         Rs=popt[3]
+        print(a,b,c,Rs)
         erra = np.sqrt(pcov[0, 0])
         errb = np.sqrt(pcov[1, 1])
         errc = np.sqrt(pcov[2, 2])
         errRs = np.sqrt(pcov[3, 3])
         Is=1/b
         errIs=(1/b**2)*errb
-        Il=(c-1)*Is
+        Il=(c-1)/b
         errIl=np.sqrt((Is*errc)**2+(c-1)*errIs**2)
         # Calcular el promedio y la desviación estándar de los resultados
-        #mean_Imax, std_Imax = Boton._monte_carlo_newton_curvefit(popt, pcov, self.opI)
-        mean_Imax=Boton._newton(a,b,c,Rs,Il)
+        mean_Imax, std_Imax = Boton._monte_carlo_newton_curvefit(popt, pcov, self.opI)
         mean_Vmax=Boton._function(mean_Imax,*popt)
-        #std_Vmax=np.abs(Boton._dfunction(mean_Imax,*popt))*std_Imax
+        std_Vmax=np.abs(Boton._dfunction(mean_Imax,*popt))*std_Imax
         #MPP
-        mpp=mean_Imax*mean_Vmax/(self.opI*self.opV)
-        #errmpp=np.sqrt((mean_Imax*std_Vmax)**2+(mean_Vmax*std_Imax)**2)/self.opV*self.opI
+        mpp=(self.opI*self.opV)/(mean_Imax*mean_Vmax)
+        errmpp=np.sqrt((std_Vmax/(mean_Imax*(mean_Vmax)**2))**2+(std_Imax/(mean_Vmax*(mean_Imax)**2))**2)*(self.opV*self.opI)
         indexmin=np.argmax(I)
         indexmax=np.argmin(I)
 
@@ -302,11 +310,13 @@ class Boton(GUI):
         newfig, newax = plt.subplots(dpi=150)
         newax.scatter(V,I,color='orange',label='Datos',alpha=0.7)
         newax.scatter(self.opV,self.opI,color='purple',label='Punto de operación')
-        newax.scatter(mean_Vmax,mean_Imax,label='Punto optimo')
+        newax.scatter(mean_Vmax,mean_Imax,label='Punto optimo',color='red')
         newax.grid(True)
         newax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         newax.set_xlabel(r"Voltaje $(V)$")
         newax.set_ylabel(r"Intensidad $(A)$")
+
+        '''
         if(I[indexmin]<=mean_Imax):
             intinicial=mean_Imax+mean_Imax*0.2
         else:
@@ -315,8 +325,11 @@ class Boton(GUI):
             intfinal=I[indexmax]
         else:
             intfinal=mean_Imax-mean_Imax*0.2
-        intensity=np.linspace(0,Il,2000)
+        '''
+        intensity=np.linspace(0,Il,1000)
         voltagefit=Boton._function(intensity,*popt)
+        if voltagefit[-1]==-np.inf:
+            voltagefit[-1]=0
         newax.plot(voltagefit,intensity,label=r"$V(I)=nV_t\cdot\ln\left(\frac{I_L-I}{I_s}+1\right)-IR_s$",color='blue')
         newax.legend()
         figure_canvas = FigureCanvasTkAgg(newfig, root)
@@ -331,8 +344,10 @@ class Boton(GUI):
         labelIl=tk.Label(rootajuste,text=f"IL: {Il} +/- {errIl}",font=('Arial',12,'bold')).pack(side=tk.TOP)
         labelnVt=tk.Label(rootajuste,text=f"nVt: {a} +/- {erra}",font=('Arial',12,'bold')).pack(side=tk.TOP)
         labelRs=tk.Label(rootajuste,text=f"Rs: {Rs} +/- {errRs}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labeloptimo=tk.Label(rootajuste,text=f"V_optimo = {mean_Vmax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labeloptimo=tk.Label(rootajuste,text=f"I_optimo = {mean_Imax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelmpp=tk.Label(rootajuste,text=f"MPP = {mpp}",font=('Arial',12,'bold')).pack(side=tk.TOP)
+        labelVoperacion=tk.Label(rootajuste,text=f"V_op: {self.opV}",font=('Arial',12,'bold')).pack(side=tk.TOP)
+        labelIoperacion=tk.Label(rootajuste,text=f"I_op: {self.opI}",font=('Arial',12,'bold')).pack(side=tk.TOP) 
+        labeloptimo=tk.Label(rootajuste,text=f"V_optimo = {mean_Vmax}+-{std_Vmax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
+        labeloptimo=tk.Label(rootajuste,text=f"I_optimo = {mean_Imax}+-{std_Imax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
+        labelmpp=tk.Label(rootajuste,text=f"MPP = {mpp}+-{errmpp}",font=('Arial',12,'bold')).pack(side=tk.TOP)
 
         
