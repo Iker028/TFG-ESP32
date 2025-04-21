@@ -5,6 +5,7 @@ from PIL import Image, ImageTk
 import scipy as sp
 import numpy as np
 import serial
+from matplotlib import cm
 import time
 import matplotlib
 import matplotlib.pyplot as plt
@@ -131,7 +132,6 @@ class Boton(GUI):
         time.sleep(1)
         stringcsv = GUI.arduino.readall().decode('utf-8')
         linea=stringcsv.strip().splitlines()
-        print(linea)
         self.opV=float(linea[0].split(',')[0])
         self.opI=float(linea[0].split(',')[1])
         label=tk.Label(root2,text=f'String: {i+1}    Modulo: {j+1}',font=('Arial',15,'bold'))
@@ -191,6 +191,10 @@ class Boton(GUI):
                 yIV.append(float(linea[i].split(',')[1]))
             except(ValueError):
                 print(f"dato{i} no representable")
+        # Save xIV and yIV to IV.txt
+        with open("IV.txt", "w") as iv_file:
+            for x, y in zip(xIV, yIV):
+                iv_file.write(f"{x},{y}\n")
         histx=[]
         histy=[]
         GUI.arduino.write(bytes(self.mac+'/histeresis','utf-8'))
@@ -203,9 +207,18 @@ class Boton(GUI):
                 histy.append(float(linea[i].split(',')[1]))
             except(ValueError):
                 print(f"dato{i} no representable")
+        # Save histx and histy to hist.txt
+        with open("hist.txt", "w") as hist_file:
+            for x, y in zip(histx, histy):
+                hist_file.write(f"{x},{y}\n")
         fig, ax = plt.subplots(dpi=150)
-        ax.scatter(histx,histy,label='IVhist')
-        ax.scatter(xIV,yIV,label='IV')
+        #ax.scatter(histx,histy,label='Medidas sin corregir')
+        ax.plot(histx,histy,label='Medidas sin corregir',color='black',linewidth=1)
+        color=iter(cm.rainbow(np.linspace(0,1,len(histx))))
+        for i in range(len(histx)):
+            c=next(color)
+            ax.plot(histx[i],histy[i],'.',markersize=15,c=c) 
+        #ax.scatter(xIV,yIV,label='Datos corregidos')
         ax.grid(True)
         ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         ax.set_xlabel(r"Voltaje $(V)$")
@@ -257,7 +270,8 @@ class Boton(GUI):
     def _monte_carlo_newton_curvefit(popt, pcov, op, num_samples=1000):
         # Generar muestras aleatorias de los parámetros usando la matriz de covarianza completa
         samples = np.random.multivariate_normal(mean=popt, cov=pcov, size=num_samples)
-        results = []
+        resultsI = []
+        resultsV=[]
         for sample in samples:
             a_sample, b_sample, c_sample, Rs_sample = sample
             # Calcular el máximo usando el método de Newton
@@ -268,25 +282,29 @@ class Boton(GUI):
                 if (c_sample-b_sample*op)>0:
                     try:
                         max_value = Boton._newton(a_sample, b_sample, c_sample, Rs_sample, op)
-                        results.append(max_value)
+                        resultsI.append(max_value)
+                        resultsV.append(Boton._function(max_value,a_sample,b_sample,c_sample,Rs_sample))
                     except RuntimeError:
                         print('hola')
                         continue
         # Calcular el promedio y la desviación estándar de los resultados
-        mean_max = np.mean(results)
-        std_max = np.std(results)
-        return mean_max, std_max
+        mean_Imax = np.mean(resultsI)
+        std_Imax = np.std(resultsI)
+        mean_Vmax = np.mean(resultsV)
+        std_Vmax = np.std(resultsV)
+        return mean_Imax, std_Imax, mean_Vmax, std_Vmax
     
     def curvefit(self,root,figure_canvas,I,V): 
-        p0 = [1.0, 0.001, 0.026, 1.0]
+       # p0 = [0.026, 0.001, 0.01, 1.0]
+        p0=[1, 10**12,10**13, 1]
         lower_bounds = [0, 0, 0,0] 
         upper_bounds = [np.inf,np.inf, np.inf, np.inf]  
         popt, pcov = sp.optimize.curve_fit(Boton._function,I, V,maxfev=100000,bounds=(lower_bounds, upper_bounds),p0=p0)
+        print(popt)
         a=popt[0]
         b=popt[1]
         c=popt[2]      
         Rs=popt[3]
-        print(a,b,c,Rs)
         erra = np.sqrt(pcov[0, 0])
         errb = np.sqrt(pcov[1, 1])
         errc = np.sqrt(pcov[2, 2])
@@ -296,9 +314,7 @@ class Boton(GUI):
         Il=(c-1)/b
         errIl=np.sqrt((Is*errc)**2+(c-1)*errIs**2)
         # Calcular el promedio y la desviación estándar de los resultados
-        mean_Imax, std_Imax = Boton._monte_carlo_newton_curvefit(popt, pcov, self.opI)
-        mean_Vmax=Boton._function(mean_Imax,*popt)
-        std_Vmax=np.abs(Boton._dfunction(mean_Imax,*popt))*std_Imax
+        mean_Imax, std_Imax,mean_Vmax,std_Vmax = Boton._monte_carlo_newton_curvefit(popt, pcov, self.opI)
         #MPP
         mpp=(self.opI*self.opV)/(mean_Imax*mean_Vmax)
         errmpp=np.sqrt((std_Vmax/(mean_Imax*(mean_Vmax)**2))**2+(std_Imax/(mean_Vmax*(mean_Imax)**2))**2)*(self.opV*self.opI)
@@ -308,9 +324,9 @@ class Boton(GUI):
         # Crear una nueva figura y eliminar la anterior
         figure_canvas.get_tk_widget().destroy() 
         newfig, newax = plt.subplots(dpi=150)
-        newax.scatter(V,I,color='orange',label='Datos',alpha=0.7)
-        newax.scatter(self.opV,self.opI,color='purple',label='Punto de operación')
-        newax.scatter(mean_Vmax,mean_Imax,label='Punto optimo',color='red')
+        newax.scatter(V,I,label='Datos corregidos',alpha=0.5)
+        newax.scatter(self.opV,self.opI,label='OP')
+        newax.scatter(mean_Vmax,mean_Imax,label='MPP')
         newax.grid(True)
         newax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         newax.set_xlabel(r"Voltaje $(V)$")
@@ -330,7 +346,7 @@ class Boton(GUI):
         voltagefit=Boton._function(intensity,*popt)
         if voltagefit[-1]==-np.inf:
             voltagefit[-1]=0
-        newax.plot(voltagefit,intensity,label=r"$V(I)=nV_t\cdot\ln\left(\frac{I_L-I}{I_s}+1\right)-IR_s$",color='blue')
+        newax.plot(voltagefit,intensity,label=r"$V(I)=nV_t\cdot\ln\left(\frac{I_L-I}{I_s}+1\right)-IR_s$",color='gray')
         newax.legend()
         figure_canvas = FigureCanvasTkAgg(newfig, root)
         NavigationToolbar2Tk(figure_canvas, root)
@@ -339,15 +355,18 @@ class Boton(GUI):
         rootajuste=tk.Tk()
         rootajuste.title(f"Ajuste S{self.j+1} M{self.i+1}")
         rootajuste.geometry('900x600+150+150')
-        rootajuste.resizable(False,False)
-        labelIs=tk.Label(rootajuste,text=f"Is: {Is} +/- {errIs}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelIl=tk.Label(rootajuste,text=f"IL: {Il} +/- {errIl}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelnVt=tk.Label(rootajuste,text=f"nVt: {a} +/- {erra}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelRs=tk.Label(rootajuste,text=f"Rs: {Rs} +/- {errRs}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelVoperacion=tk.Label(rootajuste,text=f"V_op: {self.opV}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelIoperacion=tk.Label(rootajuste,text=f"I_op: {self.opI}",font=('Arial',12,'bold')).pack(side=tk.TOP) 
-        labeloptimo=tk.Label(rootajuste,text=f"V_optimo = {mean_Vmax}+-{std_Vmax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labeloptimo=tk.Label(rootajuste,text=f"I_optimo = {mean_Imax}+-{std_Imax}",font=('Arial',12,'bold')).pack(side=tk.TOP)
-        labelmpp=tk.Label(rootajuste,text=f"MPP = {mpp}+-{errmpp}",font=('Arial',12,'bold')).pack(side=tk.TOP)
+
+        labelajuste=tk.Label(rootajuste,text=f"Parámetros: ",font=('Arial',15,'bold')).pack(side=tk.TOP)
+        labelIs=tk.Label(rootajuste,text=f"Is: {Is} +/- {errIs}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+        labelIl=tk.Label(rootajuste,text=f"IL: {Il} +/- {errIl}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+        labelnVt=tk.Label(rootajuste,text=f"nVt: {a} +/- {erra}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+        labelRs=tk.Label(rootajuste,text=f"Rs: {Rs} +/- {errRs}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+
+        labelVoperacion=tk.Label(rootajuste,text=f"V_OP: {self.opV:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='orange').pack(side=tk.BOTTOM,anchor=tk.W)
+        labelIoperacion=tk.Label(rootajuste,text=f"I_OP: {self.opI:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='orange').pack(side=tk.BOTTOM,anchor=tk.W) 
+        labeloptimo=tk.Label(rootajuste,text=f"V_MPP = {mean_Vmax:.3f} +/- {std_Vmax:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='green').pack(side=tk.BOTTOM,anchor=tk.W)
+        labeloptimo=tk.Label(rootajuste,text=f"I_MPP = {mean_Imax:.3f} +/- {std_Imax:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='green').pack(side=tk.BOTTOM,anchor=tk.W)
+        labelmpp=tk.Label(rootajuste,text=f"Desajuste = {mpp:.3f} +/- {errmpp:.3f}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.BOTTOM,anchor=tk.W)
+        labelajuste=tk.Label(rootajuste,text=f"Desajuste: ",font=('Arial',15,'bold')).pack(side=tk.BOTTOM)
 
         

@@ -3,6 +3,8 @@ from tkinter import ttk  #version mas nueva
 from ctypes import windll
 from PIL import Image, ImageTk
 from serial import SerialException
+import matplotlib.colors as mcolors
+
 try:
     import clasestrings as cs
 except(SerialException):

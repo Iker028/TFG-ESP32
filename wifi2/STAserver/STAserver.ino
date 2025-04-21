@@ -14,6 +14,7 @@ const int string =2;
 const int modulo=2;
 
 
+/**
 double luminosidad(){
   double vluz=analogRead(luz);
   double vluz1=analogRead(luz);
@@ -21,7 +22,13 @@ double luminosidad(){
   double L=pow(10.0,log10(Iph)/1.3059)*2535.12;
   return L;
 }
+*/
 
+double luminosidad(){
+  double vluz=analogRead(luz);
+  double vluz1=analogRead(luz);
+  return (3.3-vluz1)/0.00646;
+}
 /**
 Método que calcula la temperatura
 */
