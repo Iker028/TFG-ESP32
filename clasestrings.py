@@ -17,7 +17,16 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg,
     NavigationToolbar2Tk
 )
-
+plt.rcParams.update(plt.rcParamsDefault)
+#plt.rcParams['figure.dpi'] = 300
+'''
+plt.rcParams.update({  # Tamaño del gráfico
+    'axes.titlesize': 20,      # Tamaño del título
+    'axes.labelsize': 20,      # Tamaño de las etiquetas de los ejes
+    'xtick.labelsize': 18,     # Tamaño de los números en el eje x
+    'ytick.labelsize': 18,     # Tamaño de los números en el eje y
+    'legend.fontsize': 18})
+'''
 
 class GUI(tk.Tk):
     arduino=serial.Serial(port='COM6',baudrate=9600,timeout=1)
@@ -165,7 +174,8 @@ class Boton(GUI):
             except(ValueError):
                 print(f"dato{i} no representable")
         fig, ax = plt.subplots(dpi=150)
-        ax.scatter(x,y)
+        ax.scatter(x,y,label='datos corregidos',color='tab:green',s=200,marker='*')
+        
         ax.grid(True)
         ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         ax.set_xlabel(r"Voltaje $(V)$")
@@ -211,13 +221,24 @@ class Boton(GUI):
         with open("hist.txt", "w") as hist_file:
             for x, y in zip(histx, histy):
                 hist_file.write(f"{x},{y}\n")
+        
+        Vmin=min(histx)
+        min_index=histx.index(Vmin)
+
+        histirev=histy[0:min_index-1]
+        histvrev=histx[0:min_index-1]
+
+        histifw=histy[min_index:]
+        histvfw=histx[min_index:]
+        
         fig, ax = plt.subplots(dpi=150)
         #ax.scatter(histx,histy,label='Medidas sin corregir')
-        ax.plot(histx,histy,label='Medidas sin corregir',color='black',linewidth=1)
-        color=iter(cm.rainbow(np.linspace(0,1,len(histx))))
-        for i in range(len(histx)):
-            c=next(color)
-            ax.plot(histx[i],histy[i],'.',markersize=15,c=c) 
+        ax.plot(histvrev,histirev,linewidth='2',alpha=0.5,label='reversa')
+        ax.plot(histvfw,histifw,linewidth='2',alpha=0.5,label='directa')
+        ax.scatter(xIV,yIV,label='datos corregidos',color='tab:green',s=200,marker='*')
+        ax.scatter(histvrev,histirev,color='tab:blue',s=200,marker='s',label='reversa',alpha=0.2)
+        ax.scatter(histvfw,histifw,color='tab:orange',s=200,marker='o',label='directa',alpha=0.2)
+        
         #ax.scatter(xIV,yIV,label='Datos corregidos')
         ax.grid(True)
         ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
@@ -248,105 +269,123 @@ class Boton(GUI):
     def change_image(self, new_image):
         self.boton.config(image=new_image)
     
-    def _function(I,a,b,c,Rs):
-        arg = -b*I + c
-        # Return a big penalty where log is invalid
-        if np.any(arg) <= 0:
-            return np.full_like(I,1e6)
-        return a*np.log(arg)-I*Rs
-    def _dfunction(I,a,b,c,Rs):
-        return -((a*b)/(c-b*I)+Rs)
-    def _power(I,a,b,c,Rs):
-        return Boton._function(I,a,b,c,Rs)*I
-    def _dpower(I,a,b,c,Rs):
-        arg=c-b*I
-        return a*np.log(c-b*I)-I*(2*Rs+(a*b)/(c-b*I))
-    def _ddpower(I,a,b,c,Rs):
-        return -(2 *a*b)/(c-b*I) -(a*b**2*I)/(c-b*I)**2 -2*Rs
+    def _function(I,params):
+        Il, I0, Rs, NVt = params
+        arg = -I/I0 + 1+Il/I0
+        return NVt*np.log(arg)-I*Rs
     
-    def _newton(a,b,c,Rs,op):
-        resultado=sp.optimize.root_scalar(f=lambda I:Boton._dpower(I,a,b,c,Rs),x0=op,fprime=lambda I:Boton._ddpower(I,a,b,c,Rs),xtol=1e-4,maxiter=1000,method='bisect',bracket=[0,(c-1)/b])
+    def _dfunction(I,params):
+        Il, I0, Rs, NVt = params
+        arg = -I/I0 + 1+Il/I0
+        return NVt*(-1/I0)/arg - Rs
+    def _power(I,params):
+        return I*Boton._functon(I,params)
+    def _dpower(I,params):
+        Il, I0, Rs, NVt = params
+        b=1/I0
+        c=Il/I0+1
+        return NVt*np.log(c-b*I)-I*(2*Rs+(NVt*b)/(c-b*I))
+    
+    def _newton(params,op):
+        Il, I0, Rs, NVt = params
+        resultado=sp.optimize.root_scalar(f=lambda I:Boton._dpower(I,params),x0=op,xtol=1e-5,maxiter=1000,method='bisect',bracket=[0,Il])
         return resultado.root
-    def _monte_carlo_newton_curvefit(popt, pcov, op, num_samples=1000):
+    def _monte_carlo(popt, pcov, op, num_samples=1000):
         # Generar muestras aleatorias de los parámetros usando la matriz de covarianza completa
         samples = np.random.multivariate_normal(mean=popt, cov=pcov, size=num_samples)
         resultsI = []
         resultsV=[]
         for sample in samples:
-            a_sample, b_sample, c_sample, Rs_sample = sample
-            # Calcular el máximo usando el método de Newton
-            if c_sample <= 0 or b_sample <= 0:
-                print('Invalid sample:', sample)
-                continue  # Skip invalid samples
-            else:
-                if (c_sample-b_sample*op)>0:
-                    try:
-                        max_value = Boton._newton(a_sample, b_sample, c_sample, Rs_sample, op)
-                        resultsI.append(max_value)
-                        resultsV.append(Boton._function(max_value,a_sample,b_sample,c_sample,Rs_sample))
-                    except RuntimeError:
-                        print('hola')
-                        continue
+            Il, I0, Rs, NVt = sample
+            try:
+                max_value = Boton._newton(sample, op)
+                if (-max_value/I0 + 1+Il/I0)<0:
+                    continue
+                else:
+                    resultsI.append(max_value)
+                    resultsV.append(Boton._function(max_value,sample))
+            except RuntimeError:
+                print('hola')
+                continue
         # Calcular el promedio y la desviación estándar de los resultados
         mean_Imax = np.mean(resultsI)
+        
         std_Imax = np.std(resultsI)
         mean_Vmax = np.mean(resultsV)
         std_Vmax = np.std(resultsV)
         return mean_Imax, std_Imax, mean_Vmax, std_Vmax
     
+    def _coste(params,I,V):
+        Il, I0, Rs, NVt = params
+        dif= I - (Il - I0*(np.exp((V+Rs*I)/NVt)-1))
+        return dif 
+    
     def curvefit(self,root,figure_canvas,I,V): 
        # p0 = [0.026, 0.001, 0.01, 1.0]
-        p0=[1, 10**12,10**13, 1]
-        lower_bounds = [0, 0, 0,0] 
-        upper_bounds = [np.inf,np.inf, np.inf, np.inf]  
-        popt, pcov = sp.optimize.curve_fit(Boton._function,I, V,maxfev=100000,bounds=(lower_bounds, upper_bounds),p0=p0)
-        print(popt)
-        a=popt[0]
-        b=popt[1]
-        c=popt[2]      
-        Rs=popt[3]
-        erra = np.sqrt(pcov[0, 0])
-        errb = np.sqrt(pcov[1, 1])
-        errc = np.sqrt(pcov[2, 2])
-        errRs = np.sqrt(pcov[3, 3])
-        Is=1/b
-        errIs=(1/b**2)*errb
-        Il=(c-1)/b
-        errIl=np.sqrt((Is*errc)**2+(c-1)*errIs**2)
+        
+        lower_bounds = [0.0001, 1e-20, 0,0] 
+        upper_bounds = [200,1e-1, 50, 20]
+        initial_params = [7.0, 1e-10, 0.001, 1.0] 
+        result= sp.optimize.least_squares(Boton._coste, initial_params, args=(np.array(I), np.array(V)),bounds=(lower_bounds, upper_bounds))
+        print(result)
+        Il = result.x[0]
+        I0 = result.x[1]
+        Rs = result.x[2]
+        NVt = result.x[3]
+        jacobian = result.jac
+        residuals = result.fun
+        n_params = len(result.x)
+        n_data = len(I) 
+       
+        # Estimate the variance of the residuals
+        residual_variance = np.sum(residuals**2) / (n_data - n_params)
+
+        # Covariance matrix approximation
+        cov_matrix = np.linalg.inv(jacobian.T @ jacobian) * residual_variance
+
+        # Standard errors (square root of diagonal elements of covariance matrix)
+        parameter_errors = np.sqrt(np.diag(cov_matrix))
+        errIl = parameter_errors[0]
+        errI0 = parameter_errors[1]
+        errRs = parameter_errors[2]
+        errNVt = parameter_errors[3]
+        
         # Calcular el promedio y la desviación estándar de los resultados
-        mean_Imax, std_Imax,mean_Vmax,std_Vmax = Boton._monte_carlo_newton_curvefit(popt, pcov, self.opI)
+        mean_Imax, std_Imax,mean_Vmax,std_Vmax = Boton._monte_carlo(result.x, cov_matrix, self.opI)
         #MPP
         mpp=(self.opI*self.opV)/(mean_Imax*mean_Vmax)
         errmpp=np.sqrt((std_Vmax/(mean_Imax*(mean_Vmax)**2))**2+(std_Imax/(mean_Vmax*(mean_Imax)**2))**2)*(self.opV*self.opI)
         indexmin=np.argmax(I)
         indexmax=np.argmin(I)
+        Im=Boton._newton(result.x,self.opI) 
+        Vm=Boton._function(Im,result.x)
 
         # Crear una nueva figura y eliminar la anterior
         figure_canvas.get_tk_widget().destroy() 
         newfig, newax = plt.subplots(dpi=150)
-        newax.scatter(V,I,label='Datos corregidos',alpha=0.5)
-        newax.scatter(self.opV,self.opI,label='OP')
-        newax.scatter(mean_Vmax,mean_Imax,label='MPP')
+        newax.scatter(V,I,label='Datos corregidos',alpha=0.2,s=100,marker='*',color='tab:green')
+        newax.scatter(self.opV,self.opI,label='OP',marker='o',color='tab:red',s=50)
+        newax.scatter(mean_Vmax,mean_Imax,label='MPP',s=50)
+        newax.errorbar(
+        mean_Vmax, mean_Imax, 
+        xerr=std_Vmax, yerr=std_Imax, 
+        fmt='o', color='tab:blue', capsize=5 )
+
+        newax.errorbar(
+        self.opV, self.opI, 
+        xerr=0.4, yerr=0.1, 
+        fmt='o', color='tab:red', capsize=5 )
+        #newax.scatter(Vm,Im,label='MPP',marker='o',color='tab:blue')
         newax.grid(True)
         newax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         newax.set_xlabel(r"Voltaje $(V)$")
         newax.set_ylabel(r"Intensidad $(A)$")
 
-        '''
-        if(I[indexmin]<=mean_Imax):
-            intinicial=mean_Imax+mean_Imax*0.2
-        else:
-            intinicial=I[indexmax]
-        if(I[indexmax]<=mean_Imax):
-            intfinal=I[indexmax]
-        else:
-            intfinal=mean_Imax-mean_Imax*0.2
-        '''
         intensity=np.linspace(0,Il,1000)
-        voltagefit=Boton._function(intensity,*popt)
+        voltagefit=Boton._function(intensity,result.x)
         if voltagefit[-1]==-np.inf:
             voltagefit[-1]=0
-        newax.plot(voltagefit,intensity,label=r"$V(I)=nV_t\cdot\ln\left(\frac{I_L-I}{I_s}+1\right)-IR_s$",color='gray')
+        newax.plot(voltagefit,intensity,label=r"$V(I)=nV_t\cdot\ln\left(\frac{I_L-I}{I_s}+1\right)-IR_s$",color='green',linestyle='--')
         newax.legend()
         figure_canvas = FigureCanvasTkAgg(newfig, root)
         NavigationToolbar2Tk(figure_canvas, root)
@@ -357,9 +396,9 @@ class Boton(GUI):
         rootajuste.geometry('900x600+150+150')
 
         labelajuste=tk.Label(rootajuste,text=f"Parámetros: ",font=('Arial',15,'bold')).pack(side=tk.TOP)
-        labelIs=tk.Label(rootajuste,text=f"Is: {Is} +/- {errIs}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+        labelIs=tk.Label(rootajuste,text=f"Is: {I0} +/- {errI0}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
         labelIl=tk.Label(rootajuste,text=f"IL: {Il} +/- {errIl}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
-        labelnVt=tk.Label(rootajuste,text=f"nVt: {a} +/- {erra}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
+        labelnVt=tk.Label(rootajuste,text=f"NVt: {NVt} +/- {errNVt}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
         labelRs=tk.Label(rootajuste,text=f"Rs: {Rs} +/- {errRs}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
 
         labelVoperacion=tk.Label(rootajuste,text=f"V_OP: {self.opV:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='orange').pack(side=tk.BOTTOM,anchor=tk.W)
