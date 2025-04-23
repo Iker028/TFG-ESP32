@@ -11,23 +11,23 @@ const String IP="192.168.4.1";
 int httpCode=0;
 
 const int string =2;
-const int modulo=2;
+const int modulo=1;
 
-
-/**
+/*
 double luminosidad(){
   double vluz=analogRead(luz);
   double vluz1=analogRead(luz);
   double Iph=vluz1/6.8;
   double L=pow(10.0,log10(Iph)/1.3059)*2535.12;
   return L;
-}
-*/
+}*/
+
+
 
 double luminosidad(){
   double vluz=analogRead(luz);
   double vluz1=analogRead(luz);
-  return (3.3-vluz1)/0.00646;
+  return (vluz1)/0.00646;
 }
 /**
 Método que calcula la temperatura
@@ -324,6 +324,7 @@ String algoritmo(const std::vector<double>& Vmlist, const std::vector<double>& I
   double Cavg=sumaC/numero;
   Serial.println(Cavg,14);
   */
+
   std::vector<double> Clist;
   double c=0;
   for(size_t i=0;i<Vjfw.size();i++){

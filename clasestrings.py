@@ -9,6 +9,7 @@ from matplotlib import cm
 import time
 import matplotlib
 import matplotlib.pyplot as plt
+import tkinter.font as tkFont
 
 matplotlib.use('TkAgg')
 
@@ -147,14 +148,13 @@ class Boton(GUI):
         label.pack(side=tk.TOP)
         labelmac=tk.Label(root2,text=f'Mac: {self.mac}',font=('Arial',12,'bold'))
         labelmac.pack(side=tk.TOP)
-        labeltemp=tk.Label(root2,text=f'Temperatura: {self.temp()}',font=('Arial',12,'bold'))
+        labeltemp=tk.Label(root2,text=f'Temperatura: {self.temp()} °C',font=('Arial',12,'bold'))
         labeltemp.pack(side=tk.TOP)
-        labellum=tk.Label(root2,text=f'Luminosidad: {self.lum()}',font=('Arial',12,'bold'))
+        labellum=tk.Label(root2,text=f'Luminosidad: {self.lum()} Lux',font=('Arial',12,'bold'))
         labellum.pack(side=tk.TOP)
         labelop=tk.Label(root2,text=f'Operation point: Vop={self.opV}, Iop={self.opI}',font=('Arial',12,'bold'))
-        botonIV=ttk.Button(root2,text='Grafico I-V',command=self.graphIV)
-        botonIV.pack(anchor='center')
-        botonIVhist=ttk.Button(root2,text='IVhist',command=self.graph_IVhist)
+       
+        botonIVhist=ttk.Button(root2,text='Gráfico I-V',command=self.graph_IVhist)
         botonIVhist.pack(anchor='center')
 
 
@@ -175,7 +175,6 @@ class Boton(GUI):
                 print(f"dato{i} no representable")
         fig, ax = plt.subplots(dpi=150)
         ax.scatter(x,y,label='datos corregidos',color='tab:green',s=200,marker='*')
-        
         ax.grid(True)
         ax.set_title(f'I-V sensor S{self.j+1} M{self.i+1}')
         ax.set_xlabel(r"Voltaje $(V)$")
@@ -236,8 +235,8 @@ class Boton(GUI):
         ax.plot(histvrev,histirev,linewidth='2',alpha=0.5,label='reversa')
         ax.plot(histvfw,histifw,linewidth='2',alpha=0.5,label='directa')
         ax.scatter(xIV,yIV,label='datos corregidos',color='tab:green',s=200,marker='*')
-        ax.scatter(histvrev,histirev,color='tab:blue',s=200,marker='s',label='reversa',alpha=0.2)
-        ax.scatter(histvfw,histifw,color='tab:orange',s=200,marker='o',label='directa',alpha=0.2)
+        ax.scatter(histvrev,histirev,color='tab:blue',s=100,marker='s',label='reversa',alpha=0.2)
+        ax.scatter(histvfw,histifw,color='tab:orange',s=100,marker='o',label='directa',alpha=0.2)
         
         #ax.scatter(xIV,yIV,label='Datos corregidos')
         ax.grid(True)
@@ -248,6 +247,20 @@ class Boton(GUI):
         figure_canvas = FigureCanvasTkAgg(fig, root4)
         NavigationToolbar2Tk(figure_canvas, root4)
         figure_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        #botonajustar=ttk.Button(root4,text="Ajustar",command=lambda:self.curvefit(root4,figure_canvas,yIV,xIV))
+        #botonajustar.pack(side=tk.TOP)
+        menu_font = tkFont.Font(family="Arial", size=20)
+        menu_bar = tk.Menu(root4,font=menu_font)
+        root4.config(menu=menu_bar)
+        
+        # Create a File menu and add items
+        file_menu = tk.Menu(menu_bar, tearoff=0)
+        file_menu.add_command(label="Ajuste", command=lambda:self.curvefit(root4,figure_canvas,yIV,xIV))
+        menu_bar.add_cascade(
+        label="Options",
+        menu=file_menu,
+        underline=0)
+        #file_menu.add_command(label="Open", command=open_file)
     def temp(self):
         GUI.arduino.write(bytes(self.mac+'/temperatura','utf-8'))
         time.sleep(1)
@@ -315,6 +328,39 @@ class Boton(GUI):
         std_Vmax = np.std(resultsV)
         return mean_Imax, std_Imax, mean_Vmax, std_Vmax
     
+    def monte_carlo_graph(self,popt, pcov, num_samples):
+        # Generar muestras aleatorias de los parámetros usando la matriz de covarianza completa
+        samples = np.random.multivariate_normal(mean=popt, cov=pcov, size=num_samples)
+        resultsI = []
+        resultsV=[]
+        for sample in samples:
+            # Calcular la curva I-V para cada conjunto de parámetros muestreados
+            Il, I0, Rs, NVt = sample
+            I = np.linspace(0,sample[0], 1000)
+            V = Boton._function(I,sample)
+            resultsI.append(I)
+            resultsV.append(V)
+        np.array(resultsI)
+        np.array(resultsV)
+        
+        fig,ax=plt.subplots(dpi=150)
+        ax.set_title(f'Curvas I-V Monte Carlo: S{self.j+1} M{self.i+1}')
+        for Ival, Vval in zip(resultsI, resultsV):
+            ax.plot(Vval, Ival, alpha=0.3, color='tab:red')  # Plot each curve with transparency
+        ax.set_xlabel("Voltaje (V)")
+        ax.set_ylabel("Intensidad (A)")
+        I = np.linspace(0,popt[0], 1000)
+        V = Boton._function(I,popt)
+        ax.plot(V,I,label='Curva optima',color='black',linewidth='5') 
+        ax.grid(True)
+        ax.legend(loc='lower left')
+        rootmontecarlo=tk.Tk()  
+        rootmontecarlo.title(f'Curvas I-V Monte Carlo: S{self.j+1} M{self.i+1}')
+        figure_canvas = FigureCanvasTkAgg(fig, rootmontecarlo)
+        NavigationToolbar2Tk(figure_canvas, rootmontecarlo)
+        figure_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+
     def _coste(params,I,V):
         Il, I0, Rs, NVt = params
         dif= I - (Il - I0*(np.exp((V+Rs*I)/NVt)-1))
@@ -373,7 +419,7 @@ class Boton(GUI):
 
         newax.errorbar(
         self.opV, self.opI, 
-        xerr=0.4, yerr=0.1, 
+        xerr=0.2, yerr=0.01, 
         fmt='o', color='tab:red', capsize=5 )
         #newax.scatter(Vm,Im,label='MPP',marker='o',color='tab:blue')
         newax.grid(True)
@@ -391,7 +437,7 @@ class Boton(GUI):
         NavigationToolbar2Tk(figure_canvas, root)
         figure_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        rootajuste=tk.Tk()
+        rootajuste=tk.Toplevel()
         rootajuste.title(f"Ajuste S{self.j+1} M{self.i+1}")
         rootajuste.geometry('900x600+150+150')
 
@@ -401,6 +447,16 @@ class Boton(GUI):
         labelnVt=tk.Label(rootajuste,text=f"NVt: {NVt} +/- {errNVt}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
         labelRs=tk.Label(rootajuste,text=f"Rs: {Rs} +/- {errRs}",font=('Arial',12,'bold'),anchor=tk.W).pack(side=tk.TOP,anchor=tk.W)
 
+        textmontecarl=tk.StringVar()
+        text=ttk.Entry(rootajuste,textvariable=textmontecarl)
+        botonMonteCarlo=ttk.Button(rootajuste,text='Graficar',command=lambda:Boton.monte_carlo_graph(self,result.x, cov_matrix,int(textmontecarl.get())))
+       
+        botonMonteCarlo.pack(side=tk.BOTTOM)
+        text.pack(side=tk.BOTTOM)
+        labelajuste=tk.Label(rootajuste,text=f"Monte Carlo numero de muestras: ",font=('Arial',12,'bold')).pack(side=tk.BOTTOM)
+        
+        
+    
         labelVoperacion=tk.Label(rootajuste,text=f"V_OP: {self.opV:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='orange').pack(side=tk.BOTTOM,anchor=tk.W)
         labelIoperacion=tk.Label(rootajuste,text=f"I_OP: {self.opI:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='orange').pack(side=tk.BOTTOM,anchor=tk.W) 
         labeloptimo=tk.Label(rootajuste,text=f"V_MPP = {mean_Vmax:.3f} +/- {std_Vmax:.3f}",font=('Arial',12,'bold'),anchor=tk.W,fg='green').pack(side=tk.BOTTOM,anchor=tk.W)
