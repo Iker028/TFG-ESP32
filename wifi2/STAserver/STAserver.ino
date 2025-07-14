@@ -11,7 +11,7 @@ const String IP="192.168.4.1";
 int httpCode=0;
 
 const int string =2;
-const int modulo=1;
+const int modulo=2;
 
 /*
 double luminosidad(){

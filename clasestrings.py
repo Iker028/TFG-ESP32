@@ -30,7 +30,7 @@ plt.rcParams.update({  # Tamaño del gráfico
 '''
 
 class GUI(tk.Tk):
-    arduino=serial.Serial(port='COM6',baudrate=9600,timeout=1)
+    arduino=serial.Serial(port='COM9',baudrate=9600,timeout=1)
     sensores=[]
     modulo_icon=None
     modulo_iconroja=None
@@ -312,7 +312,7 @@ class Boton(GUI):
             Il, I0, Rs, NVt = sample
             try:
                 max_value = Boton._newton(sample, op)
-                if (-max_value/I0 + 1+Il/I0)<0:
+                if (-max_value/I0 + 1+Il/I0)<0 or Rs<0:
                     continue
                 else:
                     resultsI.append(max_value)
@@ -336,10 +336,11 @@ class Boton(GUI):
         for sample in samples:
             # Calcular la curva I-V para cada conjunto de parámetros muestreados
             Il, I0, Rs, NVt = sample
-            I = np.linspace(0,sample[0], 1000)
-            V = Boton._function(I,sample)
-            resultsI.append(I)
-            resultsV.append(V)
+            if Rs>=0:
+                I = np.linspace(0,sample[0], 1000)
+                V = Boton._function(I,sample)
+                resultsI.append(I)
+                resultsV.append(V)
         np.array(resultsI)
         np.array(resultsV)
         
