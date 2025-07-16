@@ -7,7 +7,7 @@
 
 Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
-String letra="E";
+String letra="B";
 
 void receivedCallback(uint32_t from, String &msg){
   if(msg.startsWith("LETRA")){

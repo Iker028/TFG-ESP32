@@ -28,7 +28,7 @@ class node():
 class Tree():
     dicNodes = dict()
     dicletra= dict()
-    diccolor={"A": "red", "B": "orange","C": "blue", "D": "green", "E": "gray"}
+    diccolor={"A": "Salmon", "B": "orange","C": "DeepSkyBlue", "D": "LimeGreen", "E": "gray"}
     canvas = None
     arduino= None
     def __init__(self, rootk, arduino,width, height):
@@ -53,6 +53,7 @@ class Tree():
                 self.root = Tree.dicNodes[node_id]
             
         print(Tree.dicNodes)
+        print(Tree.dicletra)
         canvas=tk.Canvas(rootk, width=width, height=height, bg='white')
         Tree.canvas=canvas
         self.width = width
@@ -75,7 +76,7 @@ class Tree():
                     self.root = Tree.dicNodes[node_id]
                 break
             arduino.write(bytes('LETRA','utf-8'))
-            time.sleep(1)
+            time.sleep(2)
             texto=arduino.readall().decode('utf-8')
             Tree.dicletra.clear()
             for line in texto.split('\n'):
@@ -84,6 +85,7 @@ class Tree():
                     Tree.dicletra[palabras[0]]=palabras[1]
             Tree.canvas.delete("all")
             print(Tree.dicNodes)
+            print(Tree.dicletra)
             self.draw_tree(Tree.canvas,Tree.dicNodes, self.root)
     def _tree_depth(node):
         if node.leaf:
@@ -139,6 +141,10 @@ class Tree():
         height=self.height
         level_gap = 200
         Tree.canvas.delete("all")
+        Tree.canvas.create_rectangle( width // 2+300, 50,  width // 2+500, 150, fill='plum1')  # Fondo blanco
+        Tree.canvas.create_text(width // 2+400, 100, text="PC", font=('Arial', 28, 'bold'))
+        Tree.canvas.create_line(width // 2+70, 100, width // 2+300, 100, arrow=tk.BOTH, width=7, fill="#000000",arrowshape=(40, 50, 20)) 
+        Tree.canvas.create_text(width // 2+185, 70, text="P/S", font=('Arial', 28, 'bold'))
         Tree._draw_node(root_node, width // 2, 100, 50, width - 50, level_gap,Tree.canvas)
         Tree.canvas.pack()
 
