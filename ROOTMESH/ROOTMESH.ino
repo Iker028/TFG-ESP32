@@ -9,13 +9,20 @@
 Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 String letra="A";
+String serial;
+uint32_t id;
+
 Task taskletra( TASK_SECOND * 10 , TASK_ONCE, []() {
   mesh.sendBroadcast("LETRA");
 });
 
+
 void receivedCallback(uint32_t from, String &msg){
   if(msg.startsWith("RLETRA")){
     Serial.println(String(from)+" "+msg.substring(msg.length()-1));
+  }
+  else{
+    Serial.println(msg);
   }
 }
 void setup() {
@@ -31,6 +38,7 @@ void setup() {
   userScheduler.addTask(taskletra);
 }
 
+
 void loop() {
   // it will run the user scheduler as well
   mesh.update();
@@ -41,11 +49,20 @@ void loop() {
       painlessmesh::protocol::NodeTree tree = mesh.asNodeTree();
       printTree(tree,0);
     }
-    if (cmd == "LETRA"){
+    else if (cmd == "LETRA"){
       Serial.println(String(mesh.getNodeId())+" "+letra);
       taskletra.restart();
       taskletra.enable();
     }
+    else{
+      int index=cmd.indexOf('/');
+      String ssid=cmd.substring(0, index);
+      uint32_t id = strtoul(ssid.c_str(), NULL, 10);
+      String comando= cmd.substring(index+1);
+      serial=comando;
+      mesh.sendSingle(id,serial);
+    }
+    
   }
   
 }
