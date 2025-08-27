@@ -2,6 +2,7 @@
 #include <LittleFS.h>
 #include <vector>
 #include <algorithm>
+#include <WiFi.h>
 
 #define   MESH_PREFIX     "RED_MESH_SOLAR"
 #define   MESH_PASSWORD   "solar1234"
@@ -12,8 +13,8 @@ const int ledPins[8] = {42,41,40,39,38,37,36,35};
 const int luz=4;
 const int Vt[2]={5,6};
 painlessMesh  mesh;
-String letra="B";
-const int string =1;
+String letra="D";
+const int string =2;
 const int modulo=1;
 
 double luminosidad(){
@@ -39,9 +40,16 @@ void receivedCallback(uint32_t from, String &msg){
     String respuesta="RLETRA: "+letra;
     mesh.sendSingle(from,respuesta);
   }
+  else if(msg.startsWith("MACS")){
+      String mac = WiFi.macAddress();
+      String respuesta=String(mesh.getNodeId())+","+mac;
+      Serial.println(respuesta);
+      mesh.sendSingle(from,respuesta);
+      }
   else{
     double temperatura;
     double lum;
+    Serial.println(msg);
     switch(getCommandCode(msg)){
         case 1:{
           temperatura=temp();
@@ -81,8 +89,7 @@ void receivedCallback(uint32_t from, String &msg){
         case 5:{
               File file = LittleFS.open("/IVizq.txt", "r");
               String IVizqcorregida="";
-              if (!file) {Serial.println("HOLA");
-              }
+              if (!file) {}
               else{
               String fileContentizq = "";
               std::vector<double> Vmlistizq;

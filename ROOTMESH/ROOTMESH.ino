@@ -54,6 +54,9 @@ void loop() {
       taskletra.restart();
       taskletra.enable();
     }
+    else if (cmd=="MACS"){
+      mesh.sendBroadcast(cmd);
+    }
     else{
       int index=cmd.indexOf('/');
       String ssid=cmd.substring(0, index);
