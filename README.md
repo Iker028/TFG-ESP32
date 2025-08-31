@@ -47,7 +47,7 @@ C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\text{dir}}(V_j)}{\left. \dfrac{dV
 $$
 
 $$
-C(V_j)=(I_{rev}-I_{dir})/(\left. \dfrac{dV_j}{dt} \right|_{\text{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\text{REV}})
+C(V_j)=(I_{rev}-I_{dir})/(\frac{dV_j}{dt}-  \frac{dV_j}{dt})
 $$
 
 Se obtiene:
