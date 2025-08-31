@@ -48,7 +48,7 @@ Ajustando los datos corregidos:
 Se ajustan de acuerdo con el modelo teórico de circuito equivalente de un módulo FV:
 $$I=I_L-I_s(\exp\left(\frac{V+IR_s}{N_sV_T}\right)+1)$$
 Los resultados de los parámetros del ajuste son:
-|                      | \(I_L\) (A) | \(I_S\) (nA) | \(R_S\) (Ω) | \(N_s V_T\) (V) |
+|                      | $I_L (A)$ | $I_S (nA)$ | $R_S(Ω)$ |$N_s V_T (V)$ |
 |----------------------|-------------|--------------|-------------|-----------------|
 | **Valor**            | 1,57        | 4,12         | 0,00003     | 1,4             |
 | **Error absoluto**   | ±0,02       | ±24          | ±0,1        | ±0,2            |
