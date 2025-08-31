@@ -1,6 +1,7 @@
 
 #include "painlessMesh.h"
 #include "ArduinoJson.h"
+#include "WiFi.h"
 
 #define   MESH_PREFIX     "RED_MESH_SOLAR"
 #define   MESH_PASSWORD   "solar1234"
@@ -34,6 +35,7 @@ void setup() {
   mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
   mesh.setRoot(true);
   mesh.setContainsRoot(true);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
   mesh.onReceive(&receivedCallback);
   userScheduler.addTask(taskletra);
 }

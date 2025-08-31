@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include "esp_system.h"
+#include "WiFi.h"
 
 #define   MESH_PREFIX     "RED_MESH_SOLAR"
 #define   MESH_PASSWORD   "solar1234"
@@ -38,6 +39,9 @@ double temp(){
   T=(1.0/T)-273.0;
   return T;
 }
+
+
+
 
 void receivedCallback(uint32_t from, String &msg){
   if(msg.startsWith("LETRA")){
@@ -161,6 +165,7 @@ void receivedCallback(uint32_t from, String &msg){
 
   }
 }
+
 void setup() {
   Serial.begin(115200);
   //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
@@ -176,10 +181,12 @@ void setup() {
         baseMac[0], baseMac[1], baseMac[2], 
         baseMac[3], baseMac[4], baseMac[5]);
   mac = String(macStr);
+
 }
 
 void loop() {
   // it will run the user scheduler as well
+  mesh.setContainsRoot(true);
   mesh.update();
 }
 
