@@ -23,4 +23,12 @@ En el archivo *[STA](./Arduino/wifi2/STAserver/STAserver.ino)* se encuentra el p
 2. Archivo *[REDMESH](./Arduino/REDMESH/REDMESH.ino)* y *[ROOTMESH](./Arduino/ROOTMESH/ROOTMESH.ino)* que sirven para crear una red de sensores óptima readaptable en la que cada uno se conecta al más cercano llegando en última instancia al *root* (conectado al ordenador). Ver imagen:
 ![](./Fotos/RedMESH.png)
 
-## Interfaz gráfica
+## 2. Interfaz gráfica
+La interfaz muestra los datos obtenidos de los sensores. Usar *[Interfaz](./Interfaz/Interfaz1.py)* para el caso en el que están "todos a uno", *[InterfazMESH](./Interfaz/InterfazMESH.py)* para el caso en que forman una red readaptable.
+
+Fotos de la interfaz:
+![](./Fotos/Parquesolar.png)
+![](./Fotos/parqueajuste.png)
+![](./Fotos/parquemontecarlo.png)
+
+
