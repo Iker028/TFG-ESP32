@@ -31,4 +31,30 @@ Fotos de la interfaz:
 ![](./Fotos/parqueajuste.png)
 ![](./Fotos/parquemontecarlo.png)
 
+## 3. Proceso de medida
+En el proceso de medida el módulo fotovoltaico expone un comportamiento dinámico debido a la aparición de una capacidad parásista:
+![](./Fotos/CircuitoC.png)
+Los datos medidos forman una histéresis:
+![](./Fotos/histeresis.gif)
+Estos deben ser corregidos y después ajustados, el algoritmo de corrección consiste en lo siguiente:
+$$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j}{dt}\right|_{\mathrm{DIR}}$$
+Donde:
+$$C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\mathrm{dir}}(V_j)}
+{\left. \dfrac{dV_j}{dt} \right|_{\mathrm{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\mathrm{REV}}}$$
+Se obtiene:
+![](./Fotos/Correccion.png)
+Ajustando los datos corregidos:
+![](./Fotos/ajuste.png)
+Se ajustan de acuerdo con el modelo teórico de circuito equivalente de un módulo FV:
+$$I=I_L-I_s(\exp\left(\frac{V+IR_s}{N_sV_T}\right)+1)$$
+Los resultados de los parámetros del ajuste son:
+|                      | \(I_L\) (A) | \(I_S\) (nA) | \(R_S\) (Ω) | \(N_s V_T\) (V) |
+|----------------------|-------------|--------------|-------------|-----------------|
+| **Valor**            | 1,57        | 4,12         | 0,00003     | 1,4             |
+| **Error absoluto**   | ±0,02       | ±24          | ±0,1        | ±0,2            |
+| **Error relativo**   | 0,26 %      | – %          | – %         | 14 %            |
 
+De donde se obtiene:
+$$MPP=193.05\hspace{3pt}W  \hspace{3em}\text{y}\hspace{3em} OP=183.97 \hspace{3pt}W$$
+
+lo que manifiesta que el módulo tiene entre un $0\%$ y un $8\%$ de desajuste y por tanto funciona correctamente.
