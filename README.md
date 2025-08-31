@@ -42,8 +42,11 @@ $$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j
 
 Donde:
 
+![Ecuación C(Vj)](https://latex.codecogs.com/svg.latex?C(V_j)\approx\frac{I_{\mathrm{rev}}(V_j)-I_{\mathrm{dir}}(V_j)}{\left.\dfrac{dV_j}{dt}\right|_{\mathrm{DIR}}-\left.\dfrac{dV_j}{dt}\right|_{\mathrm{REV}}})
+
+
 $$
-C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\text{dir}}(V_j)}{1}\left. \dfrac{dV_j}{dt} \right|_{\text{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\text{REV}}
+C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\text{dir}}(V_j)}{\left. \dfrac{dV_j}{dt} \right|_{\text{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\text{REV}}}
 $$
 
 Se obtiene:
