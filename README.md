@@ -37,7 +37,9 @@ En el proceso de medida el módulo fotovoltaico expone un comportamiento dinámi
 Los datos medidos forman una histéresis:
 ![](./Fotos/histeresis.gif)
 Estos deben ser corregidos y después ajustados, el algoritmo de corrección consiste en lo siguiente:
-$$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j}{dt}\right|_{\mathrm{DIR}}$$
+
+$$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j}{dt}\right|_{\text{DIR}}$$
+
 Donde:
 $$C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\mathrm{dir}}(V_j)}
 {\left. \dfrac{dV_j}{dt} \right|_{\mathrm{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\mathrm{REV}}}$$
@@ -55,6 +57,7 @@ Los resultados de los parámetros del ajuste son:
 | **Error relativo**   | 0,26 %      | – %          | – %         | 14 %            |
 
 De donde se obtiene:
+
 $$MPP=193.05\hspace{3pt}W  \hspace{3em}\text{y}\hspace{3em} OP=183.97 \hspace{3pt}W$$
 
 lo que manifiesta que el módulo tiene entre un $0\%$ y un $8\%$ de desajuste y por tanto funciona correctamente.
