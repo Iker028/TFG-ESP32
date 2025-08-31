@@ -63,4 +63,4 @@ De donde se obtiene:
 
 $$MPP=193.05\hspace{3pt}W  \hspace{3em}\text{y}\hspace{3em} OP=183.97 \hspace{3pt}W$$
 
-lo que manifiesta que el módulo tiene entre un $0\%$ y un $8\%$ de desajuste y por tanto funciona correctamente.
+lo que manifiesta que el módulo tiene entre un 0% y un 8% de desajuste y por tanto funciona correctamente.
