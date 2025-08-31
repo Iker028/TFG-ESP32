@@ -43,7 +43,7 @@ $$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j
 Donde:
 
 $$
-C(V_j) \approx \frac{I_{rev}(V_j) - I_{dir}(V_j)}{\left. \dfrac{dV_j}{dt} \right|_{DIR} - \left. \dfrac{dV_j}{dt} \right|_{REV}}
+C(V_j) \approx \frac{I_{\text{rev}}(V_j) - I_{\text{dir}}(V_j)}{1}\left. \dfrac{dV_j}{dt} \right|_{\text{DIR}} - \left. \dfrac{dV_j}{dt} \right|_{\text{REV}}
 $$
 
 Se obtiene:
