@@ -89,7 +89,7 @@ class GUI(tk.Tk):
         #y el mumero de filas sea el numero de modulos
         self.columnconfigure(strings+1,weight=1)
         self.rowconfigure(modulos+1,weight=1)
-        time.sleep(60)
+        time.sleep(15)
         self.suscribirasensores()
         for i in range(strings):
             label=tk.Label(self.frame,text=f'S{i+1}',font=('Arial',11))
@@ -103,6 +103,12 @@ class GUI(tk.Tk):
         texto = self.arduino.readall().decode('utf-8')
         texto=texto.strip()
         macs=texto.splitlines()
+        while len(macs)!=4:
+            self.arduino.write(bytes('MACS','utf-8'))
+            time.sleep(5)
+            texto = self.arduino.readall().decode('utf-8')
+            texto=texto.strip()
+            macs=texto.splitlines()
         for linea in macs:
             if linea==''or linea=='\n':
                 continue
@@ -111,7 +117,11 @@ class GUI(tk.Tk):
             print(linealist)
             self.arduino.write(bytes(linealist[0]+'/getij','utf-8'))
             time.sleep(3)
-            ij = self.arduino.readall().decode('utf-8')  
+            ij = self.arduino.readall().decode('utf-8')
+            while ij=='' or ij==b'':
+                self.arduino.write(bytes(linealist[0]+'/getij','utf-8'))
+                time.sleep(3)
+                ij = self.arduino.readall().decode('utf-8')
             print(ij.split(','))
             j=int(ij.split(',')[0])
             i=int(ij.split(',')[1])
@@ -143,17 +153,36 @@ class Boton(GUI):
         self.boton.grid(column=self.i+1,row=self.j+1,padx=5,sticky='nsew')
         self.opV=0
         self.opI=0
+        GUI.arduino.write(bytes(self.nodeid+'/OP','utf-8'))
+        time.sleep(5)
+        stringcsv = GUI.arduino.readall().decode('utf-8')
+        while stringcsv=='':
+            GUI.arduino.write(bytes(self.nodeid+'/OP','utf-8'))
+            time.sleep(5)
+            stringcsv = GUI.arduino.readall().decode('utf-8')
+        linea=stringcsv.strip().splitlines()
+        self.opV=float(linea[0].split(',')[0])
+        self.opI=float(linea[0].split(',')[1])
+        self.stringcsvIV=''
+        GUI.arduino.write(bytes(self.nodeid+'/IV','utf-8'))
+        time.sleep(5)
+        self.stringcsvIV= GUI.arduino.readall().decode('utf-8')
+        while self.stringcsvIV=='':
+            GUI.arduino.write(bytes(self.nodeid+'/IV','utf-8'))
+            time.sleep(5)
+            self.stringcsvIV = GUI.arduino.readall().decode('utf-8')
+        GUI.arduino.write(bytes(self.nodeid+'/histeresis','utf-8'))
+        time.sleep(5)
+        self.stringcsvhist = GUI.arduino.readall().decode('utf-8')
+        while self.stringcsvhist=='':
+            GUI.arduino.write(bytes(self.nodeid+'/histeresis','utf-8'))
+            time.sleep(5)
+            self.stringcsvhist = GUI.arduino.readall().decode('utf-8')
     
     def botonfunc(self,i,j):
         root2=tk.Tk()
         root2.title('String '+str(i+1)+' Modulo '+str(j+1))
         root2.geometry('500x400+150+150')
-        GUI.arduino.write(bytes(self.nodeid+'/OP','utf-8'))
-        time.sleep(5)
-        stringcsv = GUI.arduino.readall().decode('utf-8')
-        linea=stringcsv.strip().splitlines()
-        self.opV=float(linea[0].split(',')[0])
-        self.opI=float(linea[0].split(',')[1])
         label=tk.Label(root2,text=f'String: {i+1}    Modulo: {j+1}',font=('Arial',15,'bold'))
         label.pack(side=tk.TOP)
         labelmac=tk.Label(root2,text=f'Mac: {GUI.dicmacs[self.nodeid]}',font=('Arial',12,'bold'))
@@ -173,10 +202,7 @@ class Boton(GUI):
         root3.title(f'Grafico I-V: S{self.j+1} M{self.i+1}')
         x=[]
         y=[]
-        GUI.arduino.write(bytes(self.nodeid+'/IV','utf-8'))
-        time.sleep(10)
-        stringcsv = GUI.arduino.readall().decode('utf-8')
-        linea=stringcsv.strip().splitlines()
+        linea=self.stringcsvIV.strip().splitlines()
         for i in range(1,len(linea)):
             try:
                 x.append(float(linea[i].split(',')[0]))
@@ -200,10 +226,7 @@ class Boton(GUI):
         root4.title(f'Grafico I-V con histeresis: S{self.j+1} M{self.i+1}')
         xIV=[]
         yIV=[]
-        GUI.arduino.write(bytes(self.nodeid+'/IV','utf-8'))
-        time.sleep(5)
-        stringcsv = GUI.arduino.readall().decode('utf-8')
-        linea=stringcsv.strip().splitlines()
+        linea=self.stringcsvIV.strip().splitlines()
         for i in range(1,len(linea)):
             try:
                 xIV.append(float(linea[i].split(',')[0]))
@@ -216,10 +239,7 @@ class Boton(GUI):
                 iv_file.write(f"{x},{y}\n")
         histx=[]
         histy=[]
-        GUI.arduino.write(bytes(self.nodeid+'/histeresis','utf-8'))
-        time.sleep(10)
-        stringcsv = GUI.arduino.readall().decode('utf-8')
-        linea=stringcsv.strip().splitlines()
+        linea=self.stringcsvhist.strip().splitlines()
         for i in range(1,len(linea)):
             try:
                 histx.append(float(linea[i].split(',')[0]))
@@ -273,15 +293,22 @@ class Boton(GUI):
         #file_menu.add_command(label="Open", command=open_file)
     def temp(self):
         GUI.arduino.write(bytes(self.nodeid+'/temperatura','utf-8'))
-        time.sleep(5)
+        time.sleep(2)
         temperatura=GUI.arduino.readline()
+        temperatura=temperatura.strip()
+        print(temperatura)
+        while temperatura=='' or temperatura==b'':
+            temperatura=GUI.arduino.readline()
+            print(temperatura)
         temperatura=temperatura.decode('utf-8')
         return float(temperatura)
     
     def lum(self):
         GUI.arduino.write(bytes(self.nodeid+'/luminosidad','utf-8'))
-        time.sleep(5)
+        time.sleep(2)
         luminosidad=GUI.arduino.readline()
+        while luminosidad=='' or luminosidad==b'':
+            luminosidad=GUI.arduino.readline()
         luminosidad=luminosidad.decode('utf-8')
         if (float(luminosidad)==0.0):
             self.change_image(self.imagenroja)
@@ -410,7 +437,7 @@ class Boton(GUI):
         # Calcular el promedio y la desviación estándar de los resultados
         mean_Imax, std_Imax,mean_Vmax,std_Vmax = Boton._monte_carlo(result.x, cov_matrix, self.opI)
         #MPP
-        mpp=(self.opI*self.opV)/(mean_Imax*mean_Vmax)
+        mpp=1-(self.opI*self.opV)/(mean_Imax*mean_Vmax)
         errmpp=np.sqrt((std_Vmax/(mean_Imax*(mean_Vmax)**2))**2+(std_Imax/(mean_Vmax*(mean_Imax)**2))**2)*(self.opV*self.opI)
         indexmin=np.argmax(I)
         indexmax=np.argmin(I)

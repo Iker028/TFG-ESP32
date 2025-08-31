@@ -2,7 +2,7 @@
 #include <LittleFS.h>
 #include <vector>
 #include <algorithm>
-#include <WiFi.h>
+#include "esp_system.h"
 
 #define   MESH_PREFIX     "RED_MESH_SOLAR"
 #define   MESH_PASSWORD   "solar1234"
@@ -13,9 +13,11 @@ const int ledPins[8] = {42,41,40,39,38,37,36,35};
 const int luz=4;
 const int Vt[2]={5,6};
 painlessMesh  mesh;
-String letra="D";
+String letra="E";
 const int string =2;
-const int modulo=1;
+const int modulo=2;
+String mac="";
+
 
 double luminosidad(){
   double vluz=analogRead(luz);
@@ -28,6 +30,8 @@ Método que calcula la temperatura
 double temp(){
   double Vp=analogRead(Vt[0]);
   double Vn=analogRead(Vt[1]);
+  Vp=analogRead(Vt[0]);
+  Vn=analogRead(Vt[1]);
   double deltaV=-(Vp-Vn)*pow(10.0,-3.0);
   double rt=100.0*(0.5-(deltaV/3.3))/(0.5+(deltaV/3.3));
   double T=(1.0/(298.0)+(1.0/(4550))*log(rt/100.0));
@@ -41,7 +45,6 @@ void receivedCallback(uint32_t from, String &msg){
     mesh.sendSingle(from,respuesta);
   }
   else if(msg.startsWith("MACS")){
-      String mac = WiFi.macAddress();
       String respuesta=String(mesh.getNodeId())+","+mac;
       Serial.println(respuesta);
       mesh.sendSingle(from,respuesta);
@@ -166,6 +169,13 @@ void setup() {
   mesh.onReceive(&receivedCallback);
   if (!LittleFS.begin(true)) {
     Serial.println("Error al montar LITTLEFS");}
+  uint8_t baseMac[6];
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  char macStr[18];
+  sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X",
+        baseMac[0], baseMac[1], baseMac[2], 
+        baseMac[3], baseMac[4], baseMac[5]);
+  mac = String(macStr);
 }
 
 void loop() {

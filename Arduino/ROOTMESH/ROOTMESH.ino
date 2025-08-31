@@ -31,7 +31,7 @@ void setup() {
   //mesh.setDebugMsgTypes( ERROR | MESH_STATUS | CONNECTION | SYNC | COMMUNICATION | GENERAL | MSG_TYPES | REMOTE ); // all types on
   //mesh.setDebugMsgTypes( ERROR | STARTUP | CONNECTION);  // set before init() so that you can see startup messages
 
-  mesh.init( MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT );
   mesh.setRoot(true);
   mesh.setContainsRoot(true);
   mesh.onReceive(&receivedCallback);
