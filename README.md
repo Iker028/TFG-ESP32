@@ -41,9 +41,11 @@ Estos deben ser corregidos y después ajustados, el algoritmo de corrección con
 $$I_{\text{corregida}}=I_{\text{dir}}+I_C=I_{\text{dir}}+C(V_j)\left.\dfrac{dV_j}{dt}\right|_{\text{DIR}}$$
 
 Donde:
+
 $$
 C(V_j)=\frac{I_{rev}-I_{dir}}{\dfrac{dV_{jDIR}}{dt}-\dfrac{dV_{jREV}}{dt}}
 $$
+
 Se obtiene:
 ![](./Fotos/Correccion.png)
 Ajustando los datos corregidos:
